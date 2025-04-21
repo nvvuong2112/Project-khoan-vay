@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công cụ Tính Khoản Vay</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+            min-width: 200px;
+        }
+        button:hover {
+            background-color: #3a506b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right;
+        }
+        th {
+            background-color: #f2f2f2;
+            text-align: center;
+        }
+        .result {
+            margin-top: 30px;
+        }
+        .result h2 {
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 5px;
+            color: #2c3e50;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .info-table {
+            margin-bottom: 20px;
+        }
+        .info-table td:first-child {
+            font-weight: bold;
+            width: 40%;
+        }
+        
+        /* Phần in ấn */
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+                margin: 0;
+            }
+            .container {
+                width: 100%;
+                max-width: 100%;
+                box-shadow: none;
+                padding: 10px;
+                border-radius: 0;
+            }
+            .form-container, button, .tab, .tabs {
+                display: none;
+            }
+            .result {
+                display: block !important;
+            }
+            table {
+                width: 100%;
+                page-break-inside: auto;
+            }
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            h1, h2 {
+                text-align: center;
+                margin: 10px 0;
+            }
+        }
+        
+        /* Nút in */
+        .print-button {
+            background-color: #27ae60;
+        }
+        .print-button:hover {
+            background-color: #2ecc71;
+        }
+        
+        /* Menu và Tabs */
+        .tabs {
+            overflow: hidden;
+            background-color: #f1f1f1;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 20px;
+        }
+        .tab {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 16px;
+            margin: 0;
+            min-width: auto;
+            border-radius: 0;
+        }
+        .tab:hover {
+            background-color: #ddd;
+        }
+        .tab.active {
+            background-color: #2c3e50;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border-top: none;
+            animation: fadeEffect 1s;
+        }
+        @keyframes fadeEffect {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+        
+        /* Thông báo kết quả */
+        .result-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            background-color: #e7f3fe;
+            border-left: 6px solid #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Công cụ Tính Khoản Vay</h1>
+        
+        <!-- Menu tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="openTab(event, 'loanCalculator')">Tính khoản vay</button>
+            <button class="tab" onclick="openTab(event, 'earlyPayment')">Tính phí trả nợ trước hạn</button>
+        </div>
+        
+        <!-- Tab Tính khoản vay -->
+        <div id="loanCalculator" class="tabcontent" style="display: block;">
+            <div class="form-container">
+                <div class="form-group">
+                    <label for="loanAmountFormatted">Số tiền vay vốn (VND)</label>
+                    <input type="text" id="loanAmountFormatted" value="1.000.000.000" required>
+                    <input type="hidden" id="loanAmount" value="1000000000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="loanTerm">Thời hạn vay vốn (tháng)</label>
+                    <input type="number" id="loanTerm" value="24" min="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="promotionalRate">Lãi suất ưu đãi (%/năm)</label>
+                    <input type="number" id="promotionalRate" value="8" step="0.01" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="promotionalPeriod">Thời gian ưu đãi lãi suất (tháng)</label>
+                    <input type="number" id="promotionalPeriod" value="6" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="floatingRate">Lãi suất thả nổi (%/năm)</label>
+                    <input type="number" id="floatingRate" value="12" step="0.01" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="startDate">Ngày vay vốn</label>
+                    <input type="date" id="startDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="paymentDay">Ngày trả gốc, lãi hàng tháng</label>
+                    <input type="number" id="paymentDay" value="10" min="1" max="31" required>
+                </div>
+                
+                <button onclick="calculateAndDisplay()">Tính toán</button>
+                <button onclick="downloadExcel()">Tải xuống Excel</button>
+                <button onclick="printDocument()">In báo cáo</button>
+            </div>
+            
+            <div class="result" id="resultContainer" style="display: none;">
+                <h2>Thông tin khoản vay</h2>
+                <table class="info-table">
+                    <tbody id="loanInfoTable"></tbody>
+                </table>
+                
+                <h2>Lịch trả nợ</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Ngày thanh toán</th>
+                                <th>Số tiền gốc (VND)</th>
+                                <th>Số tiền lãi (VND)</th>
+                                <th>Gốc + Lãi (VND)</th>
+                                <th>Dư nợ còn lại (VND)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentScheduleTable"></tbody>
+                        <tfoot id="paymentTotalsTable"></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab Tính phí trả nợ trước hạn -->
+        <div id="earlyPayment" class="tabcontent">
+            <div class="form-container">
+                <div class="form-group">
+                    <label for="earlyPaymentAmountFormatted">Số tiền trả nợ trước hạn (VND)</label>
+                    <input type="text" id="earlyPaymentAmountFormatted" value="1.000.000.000" required>
+                    <input type="hidden" id="earlyPaymentAmount" value="1000000000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="earlyPaymentYear">Năm trả nợ trước hạn</label>
+                    <select id="earlyPaymentYear" required>
+                        <option value="1">Năm 1</option>
+                        <option value="2">Năm 2</option>
+                        <option value="3">Năm 3</option>
+                        <option value="4">Năm 4</option>
+                        <option value="5">Năm 5</option>
+                        <option value="6">Năm 6 trở đi</option>
+                    </select>
+                </div>
+                
+                <button onclick="calculateEarlyPayment()">Tính phí trả nợ trước hạn</button>
+            </div>
+            
+            <div id="earlyPaymentResult" class="result-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Thiết lập ngày hôm nay cho trường nhập ngày
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const formattedDate = today.toISOString().substr(0, 10);
+            document.getElementById('startDate').value = formattedDate;
+            
+            // Thêm sự kiện định dạng số cho trường Số tiền vay
+            const loanAmountFormatted = document.getElementById('loanAmountFormatted');
+            loanAmountFormatted.addEventListener('input', function() {
+                formatCurrency('loanAmountFormatted', 'loanAmount');
+            });
+            loanAmountFormatted.addEventListener('focus', function(e) {
+                // Di chuyển con trỏ đến cuối khi focus
+                const val = e.target.value;
+                e.target.value = '';
+                e.target.value = val;
+            });
+            
+            // Thêm sự kiện định dạng số cho trường Số tiền trả nợ trước hạn
+            const earlyPaymentAmountFormatted = document.getElementById('earlyPaymentAmountFormatted');
+            earlyPaymentAmountFormatted.addEventListener('input', function() {
+                formatCurrency('earlyPaymentAmountFormatted', 'earlyPaymentAmount');
+            });
+            earlyPaymentAmountFormatted.addEventListener('focus', function(e) {
+                // Di chuyển con trỏ đến cuối khi focus
+                const val = e.target.value;
+                e.target.value = '';
+                e.target.value = val;
+            });
+        });
+        
+        // Hàm định dạng tiền tệ (1000000 -> 1.000.000)
+        function formatCurrency(inputId, hiddenInputId) {
+            const input = document.getElementById(inputId);
+            const hiddenInput = document.getElementById(hiddenInputId);
+            
+            // Xóa tất cả các ký tự không phải số
+            let value = input.value.replace(/\D/g, '');
+            
+            // Lưu giá trị thực tế vào trường ẩn
+            hiddenInput.value = value;
+            
+            // Định dạng hiển thị với dấu phân cách hàng nghìn
+            if (value === '') {
+                input.value = '';
+            } else {
+                // Định dạng với dấu chấm phân cách hàng nghìn
+                input.value = parseInt(value).toLocaleString('de-DE'); // Sử dụng 'de-DE' cho dấu chấm phân cách
+            }
+        }
+
+        // Hàm tính toán khoản vay với lãi suất ưu đãi và lãi suất thả nổi
+        function calculateLoan(loanAmount, loanTerm, promotionalRate, promotionalPeriod, floatingRate, startDate, paymentDay) {
+            // Chuyển đổi lãi suất từ % thành hệ số thập phân
+            const promotionalMonthlyRate = promotionalRate / 100 / 12;
+            const floatingMonthlyRate = floatingRate / 100 / 12;
+            
+            // Tính toán số tiền gốc cần trả mỗi tháng (làm tròn đến hàng nghìn)
+            let monthlyPrincipal = Math.floor(loanAmount / loanTerm / 1000) * 1000;
+            
+            // Tính toán số tiền còn lại cho kỳ cuối cùng
+            const remainingAmount = loanAmount - (monthlyPrincipal * (loanTerm - 1));
+            
+            // Tạo mảng để lưu trữ kết quả
+            const paymentSchedule = [];
+            
+            // Tạo đối tượng Date từ ngày vay vốn
+            const loanDate = new Date(startDate);
+            
+            // Thiết lập ngày trả hàng tháng
+            const paymentDayOfMonth = parseInt(paymentDay);
+            
+            // Tính toán lịch trả nợ
+            let remainingPrincipal = loanAmount;
+            
+            for (let month = 1; month <= loanTerm; month++) {
+                // Xác định ngày thanh toán cho tháng hiện tại
+                const paymentDate = new Date(loanDate);
+                paymentDate.setMonth(loanDate.getMonth() + month);
+                paymentDate.setDate(paymentDayOfMonth);
+                
+                // Xác định lãi suất áp dụng
+                const currentRate = month <= promotionalPeriod ? promotionalMonthlyRate : floatingMonthlyRate;
+                
+                // Tính lãi cho tháng hiện tại
+                const interestPayment = remainingPrincipal * currentRate;
+                
+                // Xác định số tiền gốc cần trả
+                let principalPayment;
+                if (month === loanTerm) {
+                    principalPayment = remainingAmount;
+                } else {
+                    principalPayment = monthlyPrincipal;
+                }
+                
+                // Tính tổng số tiền phải trả
+                const totalPayment = principalPayment + interestPayment;
+                
+                // Cập nhật số tiền gốc còn lại
+                remainingPrincipal -= principalPayment;
+                
+                // Thêm thông tin vào lịch trả nợ
+                paymentSchedule.push({
+                    month: month,
+                    paymentDate: paymentDate.toLocaleDateString('vi-VN'),
+                    principalPayment: Math.round(principalPayment),
+                    interestPayment: Math.round(interestPayment),
+                    totalPayment: Math.round(totalPayment),
+                    remainingPrincipal: Math.round(remainingPrincipal)
+                });
+            }
+            
+            return paymentSchedule;
+        }
+
+        // Hàm hiển thị kết quả tính toán
+        function calculateAndDisplay() {
+            // Lấy giá trị từ form
+            const loanAmount = parseFloat(document.getElementById('loanAmount').value);
+            const loanTerm = parseInt(document.getElementById('loanTerm').value);
+            const promotionalRate = parseFloat(document.getElementById('promotionalRate').value);
+            const promotionalPeriod = parseInt(document.getElementById('promotionalPeriod').value);
+            const floatingRate = parseFloat(document.getElementById('floatingRate').value);
+            const startDate = document.getElementById('startDate').value;
+            const paymentDay = document.getElementById('paymentDay').value;
+            
+            // Kiểm tra dữ liệu đầu vào
+            if (!loanAmount || !loanTerm || !promotionalRate || !floatingRate || !startDate || !paymentDay) {
+                alert('Vui lòng nhập đầy đủ thông tin!');
+                return;
+            }
+            
+            // Tính toán lịch trả nợ
+            const paymentSchedule = calculateLoan(loanAmount, loanTerm, promotionalRate, promotionalPeriod, floatingRate, startDate, paymentDay);
+            
+            // Hiển thị thông tin khoản vay
+            const loanInfoTable = document.getElementById('loanInfoTable');
+            loanInfoTable.innerHTML = `
+                <tr>
+                    <td>Số tiền vay</td>
+                    <td>${loanAmount.toLocaleString('de-DE')} VND</td>
+                </tr>
+                <tr>
+                    <td>Thời hạn vay</td>
+                    <td>${loanTerm} tháng</td>
+                </tr>
+                <tr>
+                    <td>Lãi suất ưu đãi</td>
+                    <td>${promotionalRate}%/năm</td>
+                </tr>
+                <tr>
+                    <td>Thời gian ưu đãi</td>
+                    <td>${promotionalPeriod} tháng</td>
+                </tr>
+                <tr>
+                    <td>Lãi suất thả nổi</td>
+                    <td>${floatingRate}%/năm</td>
+                </tr>
+                <tr>
+                    <td>Ngày vay vốn</td>
+                    <td>${new Date(startDate).toLocaleDateString('vi-VN')}</td>
+                </tr>
+                <tr>
+                    <td>Ngày trả hàng tháng</td>
+                    <td>Ngày ${paymentDay} hàng tháng</td>
+                </tr>
+            `;
+            
+            // Hiển thị lịch trả nợ
+            const paymentScheduleTable = document.getElementById('paymentScheduleTable');
+            paymentScheduleTable.innerHTML = '';
+            
+            // Tính tổng
+            let totalPrincipal = 0;
+            let totalInterest = 0;
+            let totalPayment = 0;
+            
+            paymentSchedule.forEach(payment => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="text-center">${payment.month}</td>
+                    <td class="text-center">${payment.paymentDate}</td>
+                    <td>${payment.principalPayment.toLocaleString('de-DE')}</td>
+                    <td>${payment.interestPayment.toLocaleString('de-DE')}</td>
+                    <td>${payment.totalPayment.toLocaleString('de-DE')}</td>
+                    <td>${payment.remainingPrincipal.toLocaleString('de-DE')}</td>
+                `;
+                paymentScheduleTable.appendChild(row);
+                
+                totalPrincipal += payment.principalPayment;
+                totalInterest += payment.interestPayment;
+                totalPayment += payment.totalPayment;
+            });
+            
+            // Hiển thị tổng
+            const paymentTotalsTable = document.getElementById('paymentTotalsTable');
+            paymentTotalsTable.innerHTML = `
+                <tr>
+                    <td colspan="2" class="text-center"><strong>TỔNG CỘNG</strong></td>
+                    <td><strong>${totalPrincipal.toLocaleString('de-DE')}</strong></td>
+                    <td><strong>${totalInterest.toLocaleString('de-DE')}</strong></td>
+                    <td><strong>${totalPayment.toLocaleString('de-DE')}</strong></td>
+                    <td></td>
+                </tr>
+            `;
+            
+            // Hiển thị kết quả
+            document.getElementById('resultContainer').style.display = 'block';
+        }
+
+        // Hàm tạo dữ liệu Excel
+        function generateExcelData(loanAmount, loanTerm, promotionalRate, promotionalPeriod, floatingRate, startDate, paymentDay) {
+            // Tính toán lịch trả nợ
+            const paymentSchedule = calculateLoan(loanAmount, loanTerm, promotionalRate, promotionalPeriod, floatingRate, startDate, paymentDay);
+            
+            // Tạo dữ liệu cho Excel
+            const excelData = [];
+            
+            // Thêm thông tin đầu vào
+            excelData.push(['THÔNG TIN KHOẢN VAY']);
+            excelData.push(['Số tiền vay', loanAmount.toLocaleString('de-DE') + ' VND']);
+            excelData.push(['Thời hạn vay', loanTerm + ' tháng']);
+            excelData.push(['Lãi suất ưu đãi', promotionalRate + '%']);
+            excelData.push(['Thời gian ưu đãi', promotionalPeriod + ' tháng']);
+            excelData.push(['Lãi suất thả nổi', floatingRate + '%']);
+            excelData.push(['Ngày vay vốn', new Date(startDate).toLocaleDateString('vi-VN')]);
+            excelData.push(['Ngày trả hàng tháng', paymentDay]);
+            excelData.push([]);
+            
+            // Thêm tiêu đề cho bảng lịch trả nợ
+            excelData.push(['LỊCH TRẢ NỢ']);
+            excelData.push(['STT', 'Ngày thanh toán', 'Số tiền gốc (VND)', 'Số tiền lãi (VND)', 'Tổng thanh toán (VND)', 'Dư nợ còn lại (VND)']);
+            
+            // Thêm dữ liệu cho từng kỳ thanh toán
+            paymentSchedule.forEach(payment => {
+                excelData.push([
+                    payment.month,
+                    payment.paymentDate,
+                    payment.principalPayment,
+                    payment.interestPayment,
+                    payment.totalPayment,
+                    payment.remainingPrincipal
+                ]);
+            });
+            
+            // Tính tổng
+            const totalPrincipal = paymentSchedule.reduce((sum, payment) => sum + payment.principalPayment, 0);
+            const totalInterest = paymentSchedule.reduce((sum, payment) => sum + payment.interestPayment, 0);
+            const totalPayment = paymentSchedule.reduce((sum, payment) => sum + payment.totalPayment, 0);
+            
+            // Thêm thông tin tổng
+            excelData.push([]);
+            excelData.push(['TỔNG CỘNG', '', totalPrincipal, totalInterest, totalPayment, '']);
+            
+            return excelData;
+        }
+
+        // Hàm này sẽ tạo file Excel và cho phép tải xuống
+        function downloadExcel() {
+            // Lấy dữ liệu từ form
+            const loanAmount = parseFloat(document.getElementById('loanAmount').value);
+            const loanTerm = parseInt(document.getElementById('loanTerm').value);
+            const promotionalRate = parseFloat(document.getElementById('promotionalRate').value);
+            const promotionalPeriod = parseInt(document.getElementById('promotionalPeriod').value);
+            const floatingRate = parseFloat(document.getElementById('floatingRate').value);
+            const startDate = document.getElementById('startDate').value;
+            const paymentDay = document.getElementById('paymentDay').value;
+            
+            // Kiểm tra dữ liệu đầu vào
+            if (!loanAmount || !loanTerm || !promotionalRate || !floatingRate || !startDate || !paymentDay) {
+                alert('Vui lòng nhập đầy đủ thông tin!');
+                return;
+            }
+            
+            // Tạo dữ liệu Excel
+            const excelData = generateExcelData(loanAmount, loanTerm, promotionalRate, promotionalPeriod, floatingRate, startDate, paymentDay);
+            
+            // Tạo workbook mới
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+            
+            // Thêm worksheet vào workbook
+            XLSX.utils.book_append_sheet(wb, ws, "Lich_tra_no");
+            
+            // Tạo file Excel và tải xuống
+            XLSX.writeFile(wb, "Lich_tra_no.xlsx");
+        }
+        
+        // Hàm in báo cáo trực tiếp
+        function printDocument() {
+            // Kiểm tra nếu chưa tính toán thì tính toán trước
+            if (document.getElementById('resultContainer').style.display === 'none') {
+                calculateAndDisplay();
+            }
+            
+            // In tài liệu
+            window.print();
+        }
+        
+        // Hàm tính phí trả nợ trước hạn
+        function calculateEarlyPayment() {
+            // Lấy giá trị từ form
+            const earlyPaymentAmount = parseFloat(document.getElementById('earlyPaymentAmount').value);
+            const earlyPaymentYear = parseInt(document.getElementById('earlyPaymentYear').value);
+            
+            // Kiểm tra dữ liệu đầu vào
+            if (!earlyPaymentAmount || !earlyPaymentYear) {
+                alert('Vui lòng nhập đầy đủ thông tin!');
+                return;
+            }
+            
+            // Tính phí trả nợ trước hạn
+            let feeRate = 0;
+            
+            switch(earlyPaymentYear) {
+                case 1:
+                case 2:
+                    feeRate = 2; // 2% trong năm 1, năm 2
+                    break;
+                case 3:
+                    feeRate = 1.5; // 1.5% trong năm 3
+                    break;
+                case 4:
+                case 5:
+                    feeRate = 1; // 1% trong năm 4, năm 5
+                    break;
+                default:
+                    feeRate = 0; // 0% từ năm 6 trở đi
+            }
+            
+            const earlyPaymentFee = earlyPaymentAmount * (feeRate / 100);
+            
+            // Hiển thị kết quả
+            const resultElement = document.getElementById('earlyPaymentResult');
+            resultElement.innerHTML = `
+                <p>Thông tin tính phí trả nợ trước hạn:</p>
+                <p>- Số tiền trả nợ trước hạn: ${earlyPaymentAmount.toLocaleString('de-DE')} VND</p>
+                <p>- Thời điểm trả nợ: Năm ${earlyPaymentYear}</p>
+                <p>- Tỷ lệ phí: ${feeRate}%</p>
+                <p>- Phí trả nợ trước hạn: ${earlyPaymentFee.toLocaleString('de-DE')} VND</p>
+            `;
+            resultElement.style.display = 'block';
+        }
+        
+        // Hàm chuyển đổi giữa các tab
+        function openTab(evt, tabName) {
+            // Ẩn tất cả nội dung tab
+            const tabcontent = document.getElementsByClassName("tabcontent");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            
+            // Xóa trạng thái active của tất cả các nút tab
+            const tabs = document.getElementsByClassName("tab");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].className = tabs[i].className.replace(" active", "");
+            }
+            
+            // Hiển thị tab hiện tại và đánh dấu nút tab là active
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+    </script>
+</body>
+</html>
